@@ -1,123 +1,124 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="AgroLab", page_icon="🌱")
+st.set_page_config(page_title="Спаси реколтата", page_icon="🌱")
 
-st.title("🌱 AgroLab: Спаси реколтата чрез данни")
+st.title("🌱 СПАСИ РЕКОЛТАТА – STEM ИГРА")
 
-# -----------------------------
-# 1. DATA (учениците го попълват)
-# -----------------------------
-st.header("📊 Данни за времето и почвата")
+# -----------------------
+# 1. ВХОДНИ ДАННИ
+# -----------------------
+st.header("📊 Данни за региона")
 
-data = pd.read_csv("cucumber_data.csv")
+temp = st.number_input("🌡 Средна температура", 0, 45, 25)
+rain = st.number_input("🌧 Валежи", 0, 200, 40)
+soil = st.selectbox("🧪 Почва", ["Чернозем", "Пясъчна", "Глинеста"])
+sun = st.number_input("☀ Слънчеви дни", 0, 30, 10)
 
-st.write("📄 Вашият dataset:")
-st.dataframe(data)
+# Анализ
+st.header("🧠 Анализ на климата")
 
-# -----------------------------
-# 2. ML MODEL
-# -----------------------------
-X = data[["temp", "rain", "sun", "ph", "irrigation", "fertilizer"]]
-y = data["yield"]
+score = 0
 
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X, y)
+if 20 <= temp <= 30:
+    st.success("Температурата е подходяща")
+    score += 30
+else:
+    st.warning("Температурата е рискова")
+    score -= 20
 
-# -----------------------------
-# 3. INPUT (решения на ученика)
-# -----------------------------
-st.header("🎮 Вземи решения като фермер")
+if rain > 30:
+    st.info("Добри валежи")
+    score += 20
+else:
+    st.warning("Суша риск")
+    score -= 20
 
-temp = st.slider("🌡 Температура", 10, 40, 25)
-rain = st.slider("🌧 Валежи", 0, 100, 30)
-sun = st.slider("☀ Слънце", 0, 12, 8)
-ph = st.slider("🧪 pH на почвата", 4.0, 8.0, 6.5)
+if sun > 8:
+    score += 20
 
-irrigation = st.slider("💧 Вода (литра/декар)", 0, 5000, 2000)
-fertilizer = st.slider("🧪 Тор (кг/декар)", 0, 200, 50)
+# -----------------------
+# 2. ЗАСАЖДАНЕ
+# -----------------------
+st.header("🌱 Засаждане")
 
-# -----------------------------
-# 4. AI PREDICTION
-# -----------------------------
-input_data = np.array([[temp, rain, sun, ph, irrigation, fertilizer]])
-yield_pred = model.predict(input_data)[0]
+plant_time = st.radio("Кога засаждаш?", ["Април", "Май", "Юни"])
 
-# -----------------------------
-# 5. ECONOMIC MODEL (ФИЗИКА + РЕАЛЕН ЖИВОТ)
-# -----------------------------
-water_cost = irrigation * 0.002   # цена на вода
-fert_cost = fertilizer * 2         # цена на тор
+if plant_time == "Април":
+    score += 10
+elif plant_time == "Юни":
+    score -= 15
 
-total_cost = water_cost + fert_cost
+# -----------------------
+# 3. РАЗХОДИ
+# -----------------------
+st.header("💰 Разходи")
 
-revenue = yield_pred * 2.2
-profit = revenue - total_cost - 2000
+seed_cost = st.slider("🌱 Разсад (лв)", 0, 500, 100)
+fert = st.slider("🧪 Тор (лв)", 0, 1000, 300)
+water = st.slider("💧 Вода (лв)", 0, 1000, 200)
 
-# -----------------------------
-# 6. RANDOM EVENT
-# -----------------------------
-events = [
-    "☀ Гореща вълна",
-    "🌧 Суша",
-    "🐛 Вредители",
-    "🌤 Перфектен сезон"
-]
+budget_loss = seed_cost + fert + water
 
-event = np.random.choice(events)
+# -----------------------
+# 4. ПОЧВА
+# -----------------------
+st.header("🧪 Почва анализ")
+
+if soil == "Чернозем":
+    score += 40
+    yield_base = 7000
+elif soil == "Глинеста":
+    score += 20
+    yield_base = 5000
+else:
+    score -= 10
+    yield_base = 4000
+
+# -----------------------
+# 5. СЛУЧАЙНО СЪБИТИЕ
+# -----------------------
 st.header("⚠ Събитие")
+
+event = np.random.choice([
+    "☀ Гореща вълна",
+    "🌩 Градушка",
+    "🐛 Вредители",
+    "🌧 Дъждовно лято"
+])
+
 st.info(event)
 
 if event == "☀ Гореща вълна":
-    yield_pred *= 0.8
-elif event == "🌧 Суша":
-    yield_pred *= 0.7
+    score -= 20
+elif event == "🌩 Градушка":
+    score -= 50
 elif event == "🐛 Вредители":
-    yield_pred *= 0.6
+    score -= 30
 else:
-    yield_pred *= 1.1
+    score += 10
 
-# -----------------------------
-# 7. RESULT
-# -----------------------------
-st.header("🏁 Резултат")
+# -----------------------
+# 6. ДОБИВ
+# -----------------------
+yield_final = yield_base * (1 + score / 100)
 
-st.success(f"🥒 Добив: {int(yield_pred)} kg/decare")
-st.write(f"💰 Приход: {int(revenue)} лв")
-st.write(f"💸 Разходи: {int(total_cost)} лв")
+# -----------------------
+# 7. ФИНАЛ
+# -----------------------
+st.header("🏁 РЕЗУЛТАТ")
 
-if profit > 0:
+profit = yield_final * 2 - budget_loss
+
+st.success(f"🥒 Добив: {int(yield_final)} kg")
+
+st.write(f"💰 Разходи: {budget_loss} лв")
+st.write(f"📈 Печалба: {int(profit)} лв")
+
+if profit > 5000:
     st.balloons()
-    st.success(f"🏆 Поздравления! Печалба: {int(profit)} лв")
+    st.success("🏆 Поздравления! Спаси реколтата!")
+elif profit > 0:
+    st.info("🙂 Добър резултат")
 else:
-    st.error(f"📉 Провал! Загуба: {int(profit)} лв")
-
-# -----------------------------
-# 8. EXPLANATION (БИОЛОГИЯ + ФИЗИКА)
-# -----------------------------
-st.header("🧠 Анализ")
-
-if temp < 18:
-    st.write("❄ Ниска температура забавя растежа")
-elif temp > 30:
-    st.write("🔥 Висока температура причинява стрес")
-
-if ph < 6:
-    st.write("🧪 Кисела почва → слаб растеж")
-else:
-    st.write("🌱 Подходяща почва")
-
-# -----------------------------
-# 9. GRAPH
-# -----------------------------
-st.header("📈 Анализ на данни")
-
-fig, ax = plt.subplots()
-ax.scatter(data["temp"], data["yield"])
-ax.set_xlabel("Температура")
-ax.set_ylabel("Добив")
-
-st.pyplot(fig)
+    st.error("📉 Провал – реколтата е загубена")
