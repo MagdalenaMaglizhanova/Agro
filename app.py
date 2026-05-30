@@ -9,24 +9,24 @@ st.set_page_config(page_title="Agro Climate Lab", page_icon="🌱")
 st.title("🌱 Agro Climate Lab – Реални климатични статистики")
 
 # -----------------------------
-# 1. РЕГИОН
+# 1. РЕГИОН (FIXED)
 # -----------------------------
 st.header("🗺 Избор на регион")
 
-region = st.selectbox(
-    "Избери място",
-    {
-        "Село Труд": (42.25, 24.78),
-        "Пловдив": (42.14, 24.75),
-        "София": (42.70, 23.32),
-        "Варна": (43.21, 27.91)
-    }
-)
+regions = {
+    "Село Труд": (42.25, 24.78),
+    "Пловдив": (42.14, 24.75),
+    "София": (42.70, 23.32),
+    "Варна": (43.21, 27.91)
+}
 
-lat, lon = region
+region_name = st.selectbox("Избери място", list(regions.keys()))
+lat, lon = regions[region_name]
+
+st.info(f"📍 Избран регион: {region_name}")
 
 # -----------------------------
-# 2. ВЗИМАНЕ НА ДАННИ (OPEN-METEO)
+# 2. API ЗА ДАННИ
 # -----------------------------
 st.header("🌦 Данни за месец (Юли)")
 
@@ -39,27 +39,35 @@ url = (
     "&timezone=Europe%2FSofia"
 )
 
-response = requests.get(url)
-data_json = response.json()
+try:
+    response = requests.get(url, timeout=10)
+    data_json = response.json()
 
-temps = data_json["daily"]["temperature_2m_mean"]
-rain = data_json["daily"]["precipitation_sum"]
-dates = data_json["daily"]["time"]
+    if "daily" not in data_json:
+        st.error("❌ Няма данни от API")
+        st.stop()
 
-df = pd.DataFrame({
-    "date": dates,
-    "temp": temps,
-    "rain": rain
-})
+    temps = data_json["daily"]["temperature_2m_mean"]
+    rain = data_json["daily"]["precipitation_sum"]
+    dates = data_json["daily"]["time"]
 
-st.write("📊 Данни за юли:")
-st.dataframe(df)
+    df = pd.DataFrame({
+        "date": dates,
+        "temp": temps,
+        "rain": rain
+    })
+
+    st.dataframe(df)
+
+except Exception as e:
+    st.error(f"❌ Грешка при зареждане на данни: {e}")
+    st.stop()
 
 # -----------------------------
 # 3. СТАТИСТИКА
 # -----------------------------
-avg_temp = np.mean(temps)
-total_rain = np.sum(rain)
+avg_temp = float(np.mean(temps))
+total_rain = float(np.sum(rain))
 
 st.header("📈 Статистика")
 
@@ -67,7 +75,7 @@ st.metric("Средна температура", f"{avg_temp:.1f} °C")
 st.metric("Общи валежи", f"{total_rain:.1f} mm")
 
 # -----------------------------
-# 4. AI МОДЕЛ (прост пример)
+# 4. AI МОДЕЛ (STABLE)
 # -----------------------------
 train = pd.DataFrame({
     "temp": [18, 22, 25, 30, 33, 15],
@@ -78,33 +86,38 @@ train = pd.DataFrame({
 X = train[["temp", "rain"]]
 y = train["good_month"]
 
-model = RandomForestClassifier()
+model = RandomForestClassifier(random_state=42)
 model.fit(X, y)
 
-prediction = model.predict([[avg_temp, total_rain]])[0]
+prediction = model.predict(np.array([[avg_temp, total_rain]]))[0]
 
 # -----------------------------
 # 5. AI ЗАКЛЮЧЕНИЕ
 # -----------------------------
-st.header("🤖 AI анализ на сезона")
+st.header("🤖 AI анализ")
 
 if prediction == 1:
-    st.success("🌱 Юли е ПОДХОДЯЩ за краставици в този регион")
+    st.success("🌱 Месецът е ПОДХОДЯЩ за краставици")
 else:
-    st.error("⚠ Юли НЕ е подходящ за оптимален добив")
+    st.error("⚠ Месецът НЕ е подходящ за оптимален добив")
 
 # -----------------------------
-# 6. БИОЛОГИЯ + ФИЗИКА
+# 6. STEM ОБЯСНЕНИЕ
 # -----------------------------
-st.header("🧠 Обяснение")
+st.header("🧠 Обяснение (Биология + Физика)")
 
 if avg_temp > 30:
-    st.write("🔥 Високата температура увеличава изпарението → нужда от повече вода")
+    st.write("🔥 Висока температура → повече изпарение → нужда от напояване")
+
+elif avg_temp < 18:
+    st.write("❄ Ниска температура → забавен растеж")
+
+else:
+    st.write("🌱 Температурата е в оптимален диапазон за фотосинтеза")
 
 if total_rain < 20:
-    st.write("🌧 Засушаване → риск за растежа")
+    st.write("🌧 Засушаване → риск за растенията")
+elif total_rain > 100:
+    st.write("🌊 Прекалено много валежи → риск от загниване")
 
-if 20 <= avg_temp <= 28:
-    st.write("🌱 Оптимална температура за фотосинтеза")
-
-st.write("⚛ Данните са реални метеорологични наблюдения (Open-Meteo API).")
+st.write("⚛ Данните са реални исторически климатични наблюдения (Open-Meteo API).")
