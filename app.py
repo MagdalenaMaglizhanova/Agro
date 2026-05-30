@@ -1,124 +1,98 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
 
-st.set_page_config(page_title="Спаси реколтата", page_icon="🌱")
+st.set_page_config(page_title="Agro Data Lab", page_icon="🌱")
 
-st.title("🌱 СПАСИ РЕКОЛТАТА – STEM ИГРА")
+st.title("🌱 Agro Data Lab – Събиране и анализ на климатични данни")
 
-# -----------------------
-# 1. ВХОДНИ ДАННИ
-# -----------------------
-st.header("📊 Данни за региона")
+# -----------------------------
+# 1. ИЗБОР НА РЕГИОН
+# -----------------------------
+st.header("🗺 Избор на регион")
 
-temp = st.number_input("🌡 Средна температура", 0, 45, 25)
-rain = st.number_input("🌧 Валежи", 0, 200, 40)
-soil = st.selectbox("🧪 Почва", ["Чернозем", "Пясъчна", "Глинеста"])
-sun = st.number_input("☀ Слънчеви дни", 0, 30, 10)
+region = st.selectbox(
+    "Избери район за изследване",
+    ["Село Труд", "Пловдив", "София", "Варна", "Русе"]
+)
 
-# Анализ
-st.header("🧠 Анализ на климата")
+st.info(f"Избран регион: {region}")
 
-score = 0
+# -----------------------------
+# 2. СЪБИРАНЕ НА ДАННИ
+# -----------------------------
+st.header("📊 Климатични данни (въведени от ученици)")
 
-if 20 <= temp <= 30:
-    st.success("Температурата е подходяща")
-    score += 30
+temp = st.slider("🌡 Температура (°C)", -10, 45, 25)
+rain = st.slider("🌧 Валежи (мм)", 0, 200, 40)
+sun = st.slider("☀ Слънчеви часове", 0, 15, 8)
+humidity = st.slider("🌫 Влажност (%)", 0, 100, 60)
+
+# -----------------------------
+# 3. СЪЗДАВАНЕ НА DATASET
+# -----------------------------
+data = pd.DataFrame({
+    "region": [region],
+    "temp": [temp],
+    "rain": [rain],
+    "sun": [sun],
+    "humidity": [humidity]
+})
+
+st.header("📄 Вашите статистически данни")
+st.dataframe(data)
+
+# -----------------------------
+# 4. ML МОДЕЛ (AI)
+# -----------------------------
+# мини обучителен dataset (симулация)
+train = pd.DataFrame({
+    "temp": [20, 25, 30, 15, 10, 35],
+    "rain": [40, 30, 20, 60, 80, 10],
+    "sun": [8, 9, 10, 5, 4, 11],
+    "humidity": [60, 55, 50, 70, 80, 40],
+    "good_season": [1, 1, 0, 1, 0, 0]
+})
+
+X = train[["temp", "rain", "sun", "humidity"]]
+y = train["good_season"]
+
+model = RandomForestClassifier()
+model.fit(X, y)
+
+# -----------------------------
+# 5. AI PREDICTION
+# -----------------------------
+input_data = np.array([[temp, rain, sun, humidity]])
+prediction = model.predict(input_data)[0]
+
+# -----------------------------
+# 6. РЕЗУЛТАТ
+# -----------------------------
+st.header("🤖 AI анализ")
+
+if prediction == 1:
+    st.success("🌱 Условията са ПОДХОДЯЩИ за краставици")
 else:
-    st.warning("Температурата е рискова")
-    score -= 20
+    st.error("⚠ Условията НЕ са подходящи")
 
-if rain > 30:
-    st.info("Добри валежи")
-    score += 20
+# -----------------------------
+# 7. ОБЯСНЕНИЕ (БИОЛОГИЯ + ФИЗИКА)
+# -----------------------------
+st.header("🧠 Обяснение")
+
+if temp > 30:
+    st.write("🔥 Висока температура → стрес за растенията")
+elif temp < 15:
+    st.write("❄ Ниска температура → забавен растеж")
 else:
-    st.warning("Суша риск")
-    score -= 20
+    st.write("🌱 Оптимална температура")
 
-if sun > 8:
-    score += 20
+if humidity > 80:
+    st.write("🌫 Висока влажност → риск от болести")
 
-# -----------------------
-# 2. ЗАСАЖДАНЕ
-# -----------------------
-st.header("🌱 Засаждане")
+if rain < 20:
+    st.write("🌧 Суша → нужда от напояване")
 
-plant_time = st.radio("Кога засаждаш?", ["Април", "Май", "Юни"])
-
-if plant_time == "Април":
-    score += 10
-elif plant_time == "Юни":
-    score -= 15
-
-# -----------------------
-# 3. РАЗХОДИ
-# -----------------------
-st.header("💰 Разходи")
-
-seed_cost = st.slider("🌱 Разсад (лв)", 0, 500, 100)
-fert = st.slider("🧪 Тор (лв)", 0, 1000, 300)
-water = st.slider("💧 Вода (лв)", 0, 1000, 200)
-
-budget_loss = seed_cost + fert + water
-
-# -----------------------
-# 4. ПОЧВА
-# -----------------------
-st.header("🧪 Почва анализ")
-
-if soil == "Чернозем":
-    score += 40
-    yield_base = 7000
-elif soil == "Глинеста":
-    score += 20
-    yield_base = 5000
-else:
-    score -= 10
-    yield_base = 4000
-
-# -----------------------
-# 5. СЛУЧАЙНО СЪБИТИЕ
-# -----------------------
-st.header("⚠ Събитие")
-
-event = np.random.choice([
-    "☀ Гореща вълна",
-    "🌩 Градушка",
-    "🐛 Вредители",
-    "🌧 Дъждовно лято"
-])
-
-st.info(event)
-
-if event == "☀ Гореща вълна":
-    score -= 20
-elif event == "🌩 Градушка":
-    score -= 50
-elif event == "🐛 Вредители":
-    score -= 30
-else:
-    score += 10
-
-# -----------------------
-# 6. ДОБИВ
-# -----------------------
-yield_final = yield_base * (1 + score / 100)
-
-# -----------------------
-# 7. ФИНАЛ
-# -----------------------
-st.header("🏁 РЕЗУЛТАТ")
-
-profit = yield_final * 2 - budget_loss
-
-st.success(f"🥒 Добив: {int(yield_final)} kg")
-
-st.write(f"💰 Разходи: {budget_loss} лв")
-st.write(f"📈 Печалба: {int(profit)} лв")
-
-if profit > 5000:
-    st.balloons()
-    st.success("🏆 Поздравления! Спаси реколтата!")
-elif profit > 0:
-    st.info("🙂 Добър резултат")
-else:
-    st.error("📉 Провал – реколтата е загубена")
+st.write("⚛ Това е базиран на статистически модел AI анализ.")
