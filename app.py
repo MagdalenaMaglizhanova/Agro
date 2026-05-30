@@ -1,98 +1,110 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import requests
 from sklearn.ensemble import RandomForestClassifier
 
-st.set_page_config(page_title="Agro Data Lab", page_icon="🌱")
+st.set_page_config(page_title="Agro Climate Lab", page_icon="🌱")
 
-st.title("🌱 Agro Data Lab – Събиране и анализ на климатични данни")
+st.title("🌱 Agro Climate Lab – Реални климатични статистики")
 
 # -----------------------------
-# 1. ИЗБОР НА РЕГИОН
+# 1. РЕГИОН
 # -----------------------------
 st.header("🗺 Избор на регион")
 
 region = st.selectbox(
-    "Избери район за изследване",
-    ["Село Труд", "Пловдив", "София", "Варна", "Русе"]
+    "Избери място",
+    {
+        "Село Труд": (42.25, 24.78),
+        "Пловдив": (42.14, 24.75),
+        "София": (42.70, 23.32),
+        "Варна": (43.21, 27.91)
+    }
 )
 
-st.info(f"Избран регион: {region}")
+lat, lon = region
 
 # -----------------------------
-# 2. СЪБИРАНЕ НА ДАННИ
+# 2. ВЗИМАНЕ НА ДАННИ (OPEN-METEO)
 # -----------------------------
-st.header("📊 Климатични данни (въведени от ученици)")
+st.header("🌦 Данни за месец (Юли)")
 
-temp = st.slider("🌡 Температура (°C)", -10, 45, 25)
-rain = st.slider("🌧 Валежи (мм)", 0, 200, 40)
-sun = st.slider("☀ Слънчеви часове", 0, 15, 8)
-humidity = st.slider("🌫 Влажност (%)", 0, 100, 60)
+url = (
+    "https://archive-api.open-meteo.com/v1/archive"
+    f"?latitude={lat}&longitude={lon}"
+    "&start_date=2025-07-01"
+    "&end_date=2025-07-31"
+    "&daily=temperature_2m_mean,precipitation_sum"
+    "&timezone=Europe%2FSofia"
+)
 
-# -----------------------------
-# 3. СЪЗДАВАНЕ НА DATASET
-# -----------------------------
-data = pd.DataFrame({
-    "region": [region],
-    "temp": [temp],
-    "rain": [rain],
-    "sun": [sun],
-    "humidity": [humidity]
+response = requests.get(url)
+data_json = response.json()
+
+temps = data_json["daily"]["temperature_2m_mean"]
+rain = data_json["daily"]["precipitation_sum"]
+dates = data_json["daily"]["time"]
+
+df = pd.DataFrame({
+    "date": dates,
+    "temp": temps,
+    "rain": rain
 })
 
-st.header("📄 Вашите статистически данни")
-st.dataframe(data)
+st.write("📊 Данни за юли:")
+st.dataframe(df)
 
 # -----------------------------
-# 4. ML МОДЕЛ (AI)
+# 3. СТАТИСТИКА
 # -----------------------------
-# мини обучителен dataset (симулация)
+avg_temp = np.mean(temps)
+total_rain = np.sum(rain)
+
+st.header("📈 Статистика")
+
+st.metric("Средна температура", f"{avg_temp:.1f} °C")
+st.metric("Общи валежи", f"{total_rain:.1f} mm")
+
+# -----------------------------
+# 4. AI МОДЕЛ (прост пример)
+# -----------------------------
 train = pd.DataFrame({
-    "temp": [20, 25, 30, 15, 10, 35],
-    "rain": [40, 30, 20, 60, 80, 10],
-    "sun": [8, 9, 10, 5, 4, 11],
-    "humidity": [60, 55, 50, 70, 80, 40],
-    "good_season": [1, 1, 0, 1, 0, 0]
+    "temp": [18, 22, 25, 30, 33, 15],
+    "rain": [80, 50, 30, 10, 5, 90],
+    "good_month": [1, 1, 1, 0, 0, 1]
 })
 
-X = train[["temp", "rain", "sun", "humidity"]]
-y = train["good_season"]
+X = train[["temp", "rain"]]
+y = train["good_month"]
 
 model = RandomForestClassifier()
 model.fit(X, y)
 
-# -----------------------------
-# 5. AI PREDICTION
-# -----------------------------
-input_data = np.array([[temp, rain, sun, humidity]])
-prediction = model.predict(input_data)[0]
+prediction = model.predict([[avg_temp, total_rain]])[0]
 
 # -----------------------------
-# 6. РЕЗУЛТАТ
+# 5. AI ЗАКЛЮЧЕНИЕ
 # -----------------------------
-st.header("🤖 AI анализ")
+st.header("🤖 AI анализ на сезона")
 
 if prediction == 1:
-    st.success("🌱 Условията са ПОДХОДЯЩИ за краставици")
+    st.success("🌱 Юли е ПОДХОДЯЩ за краставици в този регион")
 else:
-    st.error("⚠ Условията НЕ са подходящи")
+    st.error("⚠ Юли НЕ е подходящ за оптимален добив")
 
 # -----------------------------
-# 7. ОБЯСНЕНИЕ (БИОЛОГИЯ + ФИЗИКА)
+# 6. БИОЛОГИЯ + ФИЗИКА
 # -----------------------------
 st.header("🧠 Обяснение")
 
-if temp > 30:
-    st.write("🔥 Висока температура → стрес за растенията")
-elif temp < 15:
-    st.write("❄ Ниска температура → забавен растеж")
-else:
-    st.write("🌱 Оптимална температура")
+if avg_temp > 30:
+    st.write("🔥 Високата температура увеличава изпарението → нужда от повече вода")
 
-if humidity > 80:
-    st.write("🌫 Висока влажност → риск от болести")
+if total_rain < 20:
+    st.write("🌧 Засушаване → риск за растежа")
 
-if rain < 20:
-    st.write("🌧 Суша → нужда от напояване")
+if 20 <= avg_temp <= 28:
+    st.write("🌱 Оптимална температура за фотосинтеза")
 
-st.write("⚛ Това е базиран на статистически модел AI анализ.")
+st.write("⚛ Данните са реални метеорологични наблюдения (Open-Meteo API).")
