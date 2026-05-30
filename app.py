@@ -1,109 +1,101 @@
 import streamlit as st
-import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-import matplotlib.pyplot as plt
+import random
 
-st.set_page_config(
-    page_title="AgroPredict",
-    page_icon="🌱",
-    layout="wide"
-)
+st.set_page_config(page_title="Спаси реколтата!", page_icon="🌱")
 
-st.title("🌱 AgroPredict")
-st.subheader("Прогнозиране на добив от краставици")
+st.title("🌱 СПАСИ РЕКОЛТАТА!")
+st.write("СТЕМ игра: фермерска симулация")
 
-# Зареждане на данните
-data = pd.read_csv("cucumber_data.csv")
+# STATE
+if "budget" not in st.session_state:
+    st.session_state.budget = 5000
+if "yield_score" not in st.session_state:
+    st.session_state.yield_score = 5000
+if "event" not in st.session_state:
+    st.session_state.event = None
+if "log" not in st.session_state:
+    st.session_state.log = []
 
-# Обучение на модела
-X = data[["temp", "rain", "sun", "ph"]]
-y = data["yield"]
+def event():
+    return random.choice([
+        "☀ Гореща вълна",
+        "🌧 Порой",
+        "❄ Слана",
+        "🐛 Вредители",
+        "🌤 Добро време"
+    ])
 
-model = RandomForestRegressor(
-    n_estimators=100,
-    random_state=42
-)
+# RESET
+if st.button("🔄 Нов сезон"):
+    st.session_state.budget = 5000
+    st.session_state.yield_score = 5000
+    st.session_state.event = None
+    st.session_state.log = []
+    st.success("Нов сезон започна!")
 
-model.fit(X, y)
+st.sidebar.title("📊 Статус")
+st.sidebar.write("💰 Бюджет:", st.session_state.budget)
+st.sidebar.write("🥒 Добив:", st.session_state.yield_score)
 
-# Sidebar
-st.sidebar.header("Входни данни")
+# PLANTING
+st.header("1️⃣ Засаждане")
+plant = st.radio("Кога садиш?", ["1 април", "15 април", "1 май"])
 
-temp = st.sidebar.slider(
-    "Средна температура (°C)",
-    10,
-    40,
-    25
-)
+if st.button("Потвърди засаждане"):
+    if plant == "1 април":
+        st.session_state.yield_score -= 300
+        st.session_state.log.append("❄ Ранно засаждане")
+    elif plant == "1 май":
+        st.session_state.yield_score -= 200
+        st.session_state.log.append("☀ Късно засаждане")
+    else:
+        st.session_state.yield_score += 200
+        st.session_state.log.append("🌱 Оптимално засаждане")
 
-rain = st.sidebar.slider(
-    "Валежи (мм)",
-    0,
-    100,
-    30
-)
+# WATER
+st.header("2️⃣ Поливане")
+water = st.radio("Поливане:", ["Малко", "Средно", "Много"])
 
-sun = st.sidebar.slider(
-    "Слънчеви часове",
-    0,
-    15,
-    8
-)
+if st.button("Полей"):
+    if water == "Средно":
+        st.session_state.yield_score += 300
+        st.session_state.budget -= 300
+    elif water == "Много":
+        st.session_state.yield_score -= 100
+        st.session_state.budget -= 600
+    else:
+        st.session_state.yield_score -= 200
 
-ph = st.sidebar.slider(
-    "pH на почвата",
-    4.0,
-    8.0,
-    6.5
-)
+# EVENT
+st.header("3️⃣ Събитие")
 
-# Прогноза
-prediction = model.predict([[temp, rain, sun, ph]])[0]
+if st.button("Генерирай събитие"):
+    st.session_state.event = event()
 
-st.metric(
-    label="Очакван добив",
-    value=f"{prediction:.0f} кг/декар"
-)
+if st.session_state.event:
+    st.warning(st.session_state.event)
 
-# Биологична интерпретация
-st.header("🧬 Анализ")
+    if "Гореща" in st.session_state.event:
+        st.session_state.yield_score -= 400
+    elif "Слана" in st.session_state.event:
+        st.session_state.yield_score -= 600
+    elif "Вредители" in st.session_state.event:
+        st.session_state.yield_score -= 500
+    else:
+        st.session_state.yield_score += 200
 
-if temp < 18:
-    st.warning("Температурата е ниска за оптимален растеж.")
-elif temp > 30:
-    st.warning("Температурата е твърде висока.")
-else:
-    st.success("Температурата е подходяща.")
+# RESULT
+st.header("🏁 Край")
 
-if ph < 6:
-    st.warning("Почвата е прекалено кисела.")
-elif ph > 7:
-    st.warning("Почвата е прекалено алкална.")
-else:
-    st.success("pH е подходящо за краставици.")
+if st.button("Финализирай сезона"):
+    revenue = st.session_state.yield_score * 2
+    profit = revenue - (5000 - st.session_state.budget)
 
-# Графика
-st.header("📈 Исторически данни")
+    st.success(f"🥒 Добив: {st.session_state.yield_score} кг")
+    st.info(f"💰 Печалба: {profit} лв")
 
-fig, ax = plt.subplots(figsize=(8, 4))
-
-ax.scatter(data["temp"], data["yield"])
-
-ax.set_xlabel("Температура")
-ax.set_ylabel("Добив (кг/декар)")
-ax.set_title("Температура срещу добив")
-
-st.pyplot(fig)
-
-# Данни
-st.header("📊 Данни")
-
-st.dataframe(data)
-
-st.header("⚛️ Физика")
-
-solar_energy = sun * 100
-
-st.write(
-    f"Оценена слънчева енергия: {solar_energy} условни единици"
-)
+    if profit > 0:
+        st.balloons()
+        st.success("🏆 УСПЕХ!")
+    else:
+        st.error("📉 Загуба")
